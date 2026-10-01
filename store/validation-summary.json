@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-01",
+  "version": "1.5.0",
+  "unit": {
+    "pass": 59,
+    "fail": 0,
+    "skipped": 0
+  },
+  "liveE2E": {
+    "pass": 19,
+    "fail": 1,
+    "runs": 1,
+    "failure": "Backward-seek buffer precondition timed out before any seek was issued; later scenarios not reached",
+    "preInstallWatchTabShieldingWithoutReload": true,
+    "naturalCrossingSeeks": 0
+  },
+  "syntheticBrowserLifecycle": {
+    "pass": 5,
+    "fail": 0,
+    "pageErrors": []
+  },
+  "permissionWarnings": {
+    "browser": "145.0.7632.6",
+    "old": [
+      "Read and change your data on sponsor.ajay.app, www.youtube.com, and youtube.com"
+    ],
+    "new": [
+      "Read and change your data on sponsor.ajay.app, www.youtube.com, and youtube.com"
+    ],
+    "equal": true
+  },
+  "storePresentation": {
+    "pass": 31,
+    "fail": 0,
+    "errors": [],
+    "externalRequests": [],
+    "images": [
+      {
+        "file": "store/images/01-shield.png",
+        "width": 1280,
+        "height": 800,
+        "mode": "RGB",
+        "opaque": true
+      },
+      {
+        "file": "store/images/02-marks-and-badge.png",
+        "width": 1280,
+        "height": 800,
+        "mode": "RGB",
+        "opaque": true
+      },
+      {
+        "file": "store/images/03-show-anyway.png",
+        "width": 1280,
+        "height": 800,
+        "mode": "RGB",
+        "opaque": true
+      },
+      {
+        "file": "store/images/04-light-and-dark.png",
+        "width": 1280,
+        "height": 800,
+        "mode": "RGB",
+        "opaque": true
+      },
+      {
+        "file": "store/images/05-popup-states.png",
+        "width": 1280,
+        "height": 800,
+        "mode": "RGB",
+        "opaque": true
+      },
+      {
+        "file": "store/images/promo-small.png",
+        "width": 440,
+        "height": 280,
+        "mode": "RGB",
+        "opaque": true
+      },
+      {
+        "file": "store/images/promo-marquee.png",
+        "width": 1400,
+        "height": 560,
+        "mode": "RGB",
+        "opaque": true
+      }
+    ]
+  },
+  "release": {
+    "file": "release/sponsor-shield-1.5.0.zip",
+    "runtimeFiles": 13,
+    "bytes": 27589,
+    "sha256": "c8ce4d382acb55fe50aa6f95863c763a5cab40ac7331c3aa85df7d2d4867c8d0",
+    "sourceAndTestedExtractionByteMatch": true
+  },
+  "rawEvidence": ".test-env/artifacts/v150",
+  "humanPending": [
+    "Replace CONTACT_EMAIL and host privacy.html at a public HTTPS URL",
+    "Complete remaining ordinary-Chrome live scenarios",
+    "Reload legacy pre-1.5.0 tabs once when upgrading an old developer install",
+    "Review publisher details, data disclosures and licence conditions; submit through the developer account"
+  ],
+  "committed": false,
+  "pushed": false,
+  "published": false
+}

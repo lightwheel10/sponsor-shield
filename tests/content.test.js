@@ -16,6 +16,7 @@ class Element {
   addEventListener(k,fn){(this.listeners[k]??=[]).push(fn);}
   removeEventListener(k,fn){this.listeners[k]=(this.listeners[k]||[]).filter(f=>f!==fn);}
   emit(k,event={}){for(const fn of this.listeners[k]||[])fn(event);}
+  dispatchEvent(event){this.emit(event.type,event);}
   contains(node){return node===this||this.children.some(c=>c.contains(node));}
 }
 async function setup({mode="legacy-value",duration=100,end=20,muted=false,fetcher=null}={}) {
@@ -31,16 +32,18 @@ async function setup({mode="legacy-value",duration=100,end=20,muted=false,fetche
   doc.documentElement=new Element();
   doc.querySelector=()=>player;
   doc.createElement=tag=>new Element(tag);
-  const timers=new Map(),badges=[];let timerId=0,settingsListener,messageListener,refreshFn;
+  const timers=new Map(),intervals=new Map(),badges=[],observers=[];let timerId=0,settingsListener,messageListener,refreshFn;
   const location={href:"https://www.youtube.com/watch?v=abcdefghijk"};
   const values={enabled:true,includeSelfpromo:false,playbackMode:mode};
   const chrome={
-    runtime:{onMessage:{addListener:fn=>messageListener=fn},sendMessage:async message=>{if(message?.type==="BADGE"){badges.push(message.count);return;}return (fetcher || (async()=>({ok:true,videoId:"abcdefghijk",segments:[{segment:[10,end],category:"sponsor",actionType:"skip",UUID:"original-test"}]})))(message);}},
-    storage:{local:{get:async()=>values},onChanged:{addListener:fn=>settingsListener=fn}}
+    runtime:{id:"our-extension",onMessage:{addListener:fn=>messageListener=fn,removeListener:fn=>{if(messageListener===fn)messageListener=null;}},sendMessage:async message=>{if(message?.type==="BADGE"){badges.push(message.count);return;}return (fetcher || (async()=>({ok:true,videoId:"abcdefghijk",segments:[{segment:[10,end],category:"sponsor",actionType:"skip",UUID:"original-test"}]})))(message);}},
+    storage:{local:{get:async()=>values},onChanged:{addListener:fn=>settingsListener=fn,removeListener:fn=>{if(settingsListener===fn)settingsListener=null;}}}
   };
-  vm.runInNewContext(source,{ShieldLogic:logic,ShieldRefresh:{createRefreshScheduler:opts=>{refreshFn=opts.refresh;return require("../refresh-scheduler.js").createRefreshScheduler({...opts,setTimer:()=>0,clearTimer(){}});}},document:doc,window:win,location,chrome,queueMicrotask,URL,
-    MutationObserver:class{constructor(fn){this.fn=fn;}observe(target){target.observer=this.fn;}disconnect(){}},
-    setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id),setInterval:()=>0});
+  const context=vm.createContext({ShieldLogic:logic,ShieldRefresh:{createRefreshScheduler:opts=>{refreshFn=opts.refresh;return require("../refresh-scheduler.js").createRefreshScheduler({...opts,setTimer:()=>0,clearTimer(){}});}},document:doc,window:win,location,chrome,queueMicrotask,URL,Event,
+    MutationObserver:class{constructor(fn){this.fn=fn;observers.push(this);}observe(target){target.observer=this.fn;this.connected=true;}disconnect(){this.connected=false;}},
+    setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id),setInterval:(fn,ms)=>{intervals.set(++timerId,{fn,ms});return timerId;},clearInterval:id=>intervals.delete(id)});
+  const inject=()=>vm.runInContext(source,context);
+  inject();
   const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
   await flush();
   const at=async(value,paused=true)=>{time=value;video.paused=paused;video.emit("timeupdate");await flush();};
@@ -51,7 +54,7 @@ async function setup({mode="legacy-value",duration=100,end=20,muted=false,fetche
   const toast=()=>find(e=>e.className==="ytss-toast")[0];
   const blurred=()=>video.classList.contains("ytss-blurred");
   const change=async(key,value)=>{settingsListener({[key]:{newValue:value}},"local");await flush();};
-  return {byClass,badges,video,player,doc,win,location,timers,at,status,button,toast,blurred,flush,change,refresh:()=>refreshFn()};
+  return {byClass,badges,video,player,doc,win,location,timers,intervals,observers,chrome,context,inject,at,status,button,toast,blurred,flush,change,refresh:()=>refreshFn()};
 }
 
 test("natural playback mutes and blurs inside, then restores after the boundary",async()=>{
@@ -133,4 +136,39 @@ test("refresh stops while paused, hidden or ended",async()=>{
  h.doc.visibilityState="hidden";await h.at(5,false);assert.equal(h.status().refresh.active,false);
  h.doc.visibilityState="visible";h.doc.emit("visibilitychange");assert.equal(h.status().refresh.active,true);
  h.video.ended=true;await h.at(5,false);assert.equal(h.status().refresh.active,false);
+});
+
+
+test("duplicate injection preserves one instance, listeners, overlay and override",async()=>{
+ const h=await setup();await h.at(11);const instance=h.context.__sponsorShield,card=h.byClass("ytss-card");
+ h.inject();await h.flush();assert.equal(h.context.__sponsorShield,instance);assert.equal(h.byClass("ytss-card"),card);
+ assert.equal(h.intervals.size,1);assert.equal(h.video.listeners.timeupdate.length,1);assert.equal(h.observers.length,2);
+ h.button("Show anyway").emit("click");h.inject();await h.at(12);assert.equal(h.status().overridden,true);
+});
+test("invalidated runtime id releases owned media and disposes all activity on the fallback tick",async()=>{
+ const h=await setup();await h.at(11,false);const tick=[...h.intervals.values()][0].fn;
+ h.chrome.runtime.id=undefined;tick();await h.flush();
+ assert.equal(h.blurred(),false);assert.equal(h.video.muted,false);assert.equal(h.byClass("ytss-overlay"),undefined);
+ assert.equal(h.timers.size,0);assert.equal(h.intervals.size,0);assert.equal(h.context.__sponsorShield,undefined);
+ assert.ok(h.observers.every(o=>!o.connected));assert.equal(h.video.listeners.timeupdate.length,0);
+ assert.ok(Object.values(h.win.listeners).every(list=>list.length===0));
+ await h.at(12);assert.equal(h.blurred(),false);assert.equal(h.video.timeWrites,0);
+});
+test("synchronous Extension context invalidated errors retire the instance safely",async()=>{
+ const h=await setup();await h.at(11);h.chrome.runtime.sendMessage=()=>{throw new Error("Extension context invalidated.");};
+ await h.change("enabled",false);assert.equal(h.context.__sponsorShield,undefined);assert.equal(h.intervals.size,0);assert.equal(h.video.muted,false);
+});
+test("rejected invalidation and late lookup responses cannot resurrect a disposed instance",async()=>{
+ for(const reject of [false,true]){
+  let settle;const h=await setup({fetcher:()=>new Promise((resolve,rejectPromise)=>settle=reject?rejectPromise:resolve)});
+  if(!reject){h.chrome.runtime.id=undefined;[...h.intervals.values()][0].fn();}
+  settle(reject?new Error("Extension context invalidated."):{ok:true,videoId:"abcdefghijk",segments:[]});await h.flush();
+  assert.equal(h.context.__sponsorShield,undefined);assert.equal(h.intervals.size,0);assert.equal(h.blurred(),false);
+ }
+});
+test("replacement handoff retires the old instance and preserves a pre-existing mute",async()=>{
+ const h=await setup({muted:true});await h.at(11);h.win.dispatchEvent(new Event("sponsor-shield:dispose"));
+ assert.equal(h.video.muted,true);assert.equal(h.blurred(),false);assert.equal(h.intervals.size,0);
+ h.inject();await h.flush();await h.at(11);assert.equal(h.blurred(),true);assert.equal(h.intervals.size,1);
+ assert.equal(h.video.listeners.timeupdate.length,1);await h.at(21);assert.equal(h.video.muted,true);
 });

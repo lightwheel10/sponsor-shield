@@ -89,7 +89,7 @@ function render(status) {
     return show("clear", "Watching", "No sponsors marked yet", "We re-check every few minutes while you watch.");
   }
   const ahead = status.time === null ? ranges : ranges.filter(range => range.start > status.time);
-  if (!ahead.length) return show("ready", "Protected", "All sponsors are behind you", `${plural(ranges.length, "segment")} shielded in this video.`);
+  if (!ahead.length) return show("ready", "Protected", "All sponsors are behind you", `${plural(ranges.length, "segment")} marked in this video.`);
   const next = status.time === null ? "" : `Next one in ${clock(ahead[0].start - status.time)}.`;
   return show("ready", "Protected", `${plural(ahead.length, "sponsor")} ahead`, next || "Ready when they play.");
 }

@@ -1,20 +1,23 @@
 {
   "manifest_version": 3,
-  "name": "YT Sponsor Shield",
-  "version": "1.4.0",
+  "name": "Sponsor Shield",
+  "version": "1.5.0",
   "description": "Mute and blur community-marked sponsor segments on YouTube. Choose Show anyway to watch a segment.",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
-    "https://sponsor.ajay.app/*"
+    "https://sponsor.ajay.app/*",
+    "https://www.youtube.com/*",
+    "https://youtube.com/*"
   ],
   "background": {
     "service_worker": "service-worker.js"
   },
   "action": {
-    "default_title": "YT Sponsor Shield",
+    "default_title": "Sponsor Shield",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/shield-16.png",

@@ -1,0 +1,18 @@
+:root{color-scheme:dark;--accent:#ffb224;--bg:#141418;--ink:#f4f4f6;--muted:#9898a6;font-family:'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--ink)}
+#composition{width:100vw;height:100vh;padding:38px 54px;overflow:hidden;position:relative;background:#141418}
+header{display:flex;align-items:center;gap:11px;font-size:18px;font-weight:600}.edition{margin-left:auto;color:var(--muted);font-size:13px;font-weight:400}
+h1{font-size:40px;font-weight:600;line-height:1.15;letter-spacing:-1px;margin:30px 0 10px}p{margin:0;color:var(--muted);font-size:18px;line-height:1.5}
+.player{display:block;width:100%;height:448px;border:1px solid #ffffff15;border-radius:18px;margin-top:25px;background:#1b1b22}
+footer{position:absolute;bottom:26px;left:54px;color:var(--muted);font-size:12px}
+.popup{width:340px;height:365px;border:0;display:block;border-radius:16px;background:#111116;box-shadow:0 24px 60px #0005}
+.popup.light{color-scheme:light;background:#f6f6f8}.popup.dark{color-scheme:dark}
+.popup-set{display:flex;gap:60px;justify-content:center;margin-top:30px}.popup-item p{font-size:13px;margin:0 0 12px;color:var(--muted)}
+.split{display:grid;grid-template-columns:1fr 340px;gap:30px;align-items:center;margin-top:28px}.split .player{height:380px;margin:0}
+.badge-note{display:flex;align-items:center;gap:14px;margin-top:16px;font-size:14px;color:var(--muted)}.badge-icon{position:relative;display:inline-block;line-height:0}.badge-icon b{position:absolute;right:-6px;bottom:-4px;background:#ffb224;border-radius:3px;color:#141418;padding:3px 5px;font:600 12px 'Segoe UI',sans-serif}
+.gallery{display:flex;gap:30px;justify-content:center;margin-top:44px}.gallery .popup{height:350px}.gallery p{font-size:13px;margin-bottom:12px}
+body[data-view=tile] #composition{padding:28px 32px}body[data-view=tile] header{font-size:24px}body[data-view=tile] header img{width:42px;height:42px}body[data-view=tile] .edition,body[data-view=tile] footer{display:none}
+.tile-line{margin-top:37px!important;font-size:30px;line-height:1.16;letter-spacing:-.7px}.tile-sub{font-size:14px;margin-top:13px}.tile-accent{position:absolute;bottom:0;left:0;right:0;height:5px;background:var(--accent)}
+body[data-view=marquee] #composition{padding:42px 64px}body[data-view=marquee] h1{font-size:48px;max-width:420px;margin-top:64px}body[data-view=marquee] p{max-width:395px;font-size:19px}body[data-view=marquee] .player{position:absolute;width:724px;height:408px;right:50px;top:60px;margin:0}body[data-view=marquee] .edition{display:none}
+
+.popup-image{height:auto}

@@ -15,7 +15,7 @@ function harness(fetcher, timeout=false){
     Date:{now:()=>now,parse:Date.parse},fetch:fetcher,
     setTimeout(fn,ms){if(timeout){queueMicrotask(fn);return 1;} const t=setTimeout(fn,ms);timers.add(t);return t;},
     clearTimeout(t){clearTimeout(t);timers.delete(t);},
-    chrome:{runtime:{id:"our-extension",onMessage:{addListener(fn){listener=fn;}}}}
+    chrome:{runtime:{id:"our-extension",onMessage:{addListener(fn){listener=fn;}},onInstalled:{addListener(){}}}}
   });
   vm.runInContext(fs.readFileSync(require.resolve("../service-worker.js"),"utf8"),context);
   return {

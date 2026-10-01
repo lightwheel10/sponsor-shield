@@ -8,6 +8,22 @@ const CACHE_LIMIT = 48;
 const CACHE_TTL = 10 * 60 * 1000;
 const MAX_BYTES = 1024 * 1024;
 
+// Static content scripts cover future navigations. This also covers pages that
+// were already open when Chrome installed or updated this extension.
+async function injectExistingTabs(details) {
+  if (!["install", "update"].includes(details.reason)) return [];
+  const tabs = await chrome.tabs.query({url: ["https://www.youtube.com/*", "https://youtube.com/*"]});
+  return Promise.allSettled(tabs.filter(tab => Number.isInteger(tab.id) && !tab.discarded).map(async tab => {
+    const target = {tabId: tab.id}; // Main frame only; a closed/navigating tab may reject.
+    await chrome.scripting.insertCSS({target, files: ["content.css"]});
+    await chrome.scripting.executeScript({target, files: ["segment-logic.js", "refresh-scheduler.js", "content.js"]});
+  }));
+}
+chrome.runtime.onInstalled.addListener(details => {
+  // Tab closure, site access restrictions and shutdown must not abort other tabs.
+  void injectExistingTabs(details).catch(() => {});
+});
+
 async function lookup(videoId, refresh = false) {
   if (pending.has(videoId)) return pending.get(videoId);
   const retryAt = cooldowns.get(videoId) || 0;

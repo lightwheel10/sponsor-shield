@@ -1,5 +1,7 @@
 (() => {
   "use strict";
+  // This global belongs to the extension's isolated world, not the website.
+  if (globalThis.__sponsorShield?.alive()) return;
   const logic = ShieldLogic;
   const state = {
     videoId: null, raw: [], ranges: [], load: "idle", error: null, refreshError: null, refreshCount: 0,
@@ -17,7 +19,8 @@
   let lastBadge = null;
   let lastTick = null;
   let pendingSeconds = 0;
-  let flushTimer = null;
+  let disposed = false;
+  let fallbackTimer = null;
   let active = null;
   let changedMute = false;
   let queued = false;
@@ -32,12 +35,51 @@
       .map(range => ({...range, source: "sponsorblock"}));
   }
   function refreshActivity() {
+    if (!contextAlive()) return;
     refreshScheduler?.setActive(Boolean(state.ready && state.settings.enabled && state.videoId && video?.isConnected
       && !video.paused && !video.ended && document.visibilityState !== "hidden"
       && !player?.classList.contains("ad-showing")));
   }
   const events = ["timeupdate", "seeking", "seeked", "ratechange", "play", "playing", "pause", "ended", "loadedmetadata", "emptied"];
   const adObserver = new MutationObserver(() => { refreshActivity(); update(); });
+  const documentObserver = new MutationObserver(queueSync);
+  const navigationEvents = ["yt-navigate-finish", "yt-page-data-updated", "popstate"];
+  const disposeEvent = "sponsor-shield:dispose";
+  const instance = {alive: contextAlive};
+
+  function contextAlive() {
+    if (disposed) return false;
+    try { if (chrome.runtime.id) return true; } catch { /* Invalidated context. */ }
+    dispose();
+    return false;
+  }
+  function apiFailure(error) {
+    if (/Extension context invalidated/i.test(error?.message || "") || !contextAlive()) dispose();
+  }
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    generation++; // Any late lookup/storage continuation becomes obsolete.
+    refreshScheduler?.dispose();
+    clearInterval(fallbackTimer);
+    adObserver.disconnect();
+    documentObserver.disconnect();
+    if (video) {
+      events.forEach(event => video.removeEventListener(event, onTiming));
+      video.removeEventListener("volumechange", onVolume);
+    }
+    release();
+    overlay?.remove();
+    marks?.remove();
+    document.removeEventListener("visibilitychange", refreshActivity);
+    navigationEvents.forEach(event => window.removeEventListener(event, queueSync));
+    window.removeEventListener("pagehide", onPageHide);
+    window.removeEventListener("pageshow", queueSync);
+    window.removeEventListener(disposeEvent, dispose);
+    try { chrome.runtime.onMessage.removeListener(onMessage); } catch { /* Already invalidated. */ }
+    try { chrome.storage.onChanged.removeListener(onSettingsChanged); } catch { /* Already invalidated. */ }
+    if (globalThis.__sponsorShield === instance) delete globalThis.__sponsorShield;
+  }
 
   function release() {
     clearTimeout(timer);
@@ -69,17 +111,22 @@
     if (pendingSeconds >= 15) flushStats();
   }
   function flushStats() {
+    if (!contextAlive()) return;
     const seconds = pendingSeconds;
     if (seconds < 1 || !chrome.storage.local.set) return;
     pendingSeconds = 0;
-    chrome.storage.local.get({shieldedSeconds: 0})
-      .then(values => chrome.storage.local.set({shieldedSeconds: (Number(values.shieldedSeconds) || 0) + seconds}))
-      .catch(() => { pendingSeconds += seconds; });
+    try {
+      chrome.storage.local.get({shieldedSeconds: 0})
+        .then(values => { if (contextAlive()) return chrome.storage.local.set({shieldedSeconds: (Number(values.shieldedSeconds) || 0) + seconds}); })
+        .catch(error => { pendingSeconds += seconds; apiFailure(error); });
+    } catch (error) { pendingSeconds += seconds; apiFailure(error); }
   }
   function sendBadge(count) {
+    if (!contextAlive()) return;
     if (count === lastBadge) return;
     lastBadge = count;
-    chrome.runtime.sendMessage({type: "BADGE", count}).catch?.(() => {});
+    try { chrome.runtime.sendMessage({type: "BADGE", count}).catch(apiFailure); }
+    catch (error) { apiFailure(error); }
   }
   // Paint segments onto YouTube's own progress bar; silently skipped if the bar is not where we expect.
   function paintMarks() {
@@ -105,11 +152,13 @@
     marksKey = key;
   }
   function showAnyway() {
+    if (!contextAlive()) return;
     if (active) rememberOverride(active);
     release();
     update();
   }
   function onVolume() {
+    if (!contextAlive()) return;
     if (active && video && !video.muted) {
       rememberOverride(active);
       changedMute = false;
@@ -174,6 +223,7 @@
   }
   function onTiming() { sync(); }
   function update() {
+    if (!contextAlive()) return;
     clearTimeout(timer);
     timer = null;
     const current = video && logic.segmentAt(state.ranges, video.currentTime);
@@ -204,12 +254,13 @@
     paintMarks();
     sendBadge(state.settings.enabled && state.videoId && state.load === "loaded" ? state.ranges.length : 0);
     // currentTime remains the authority: a timer merely asks for another check.
-    if (eligible) {
+    if (eligible && !disposed) {
       const delay = logic.boundaryDelay(state.ranges, video.currentTime, video.playbackRate, video.paused || video.ended);
       if (delay !== null) timer = setTimeout(sync, delay);
     }
   }
   async function loadSegments(refresh = false) {
+    if (!contextAlive()) return {error: true};
     if (inFlight?.generation === generation) return {error: true};
     const requestGeneration = generation;
     const videoId = state.videoId;
@@ -219,6 +270,7 @@
     let outcome;
     try {
       const result = await chrome.runtime.sendMessage({type: "GET_SEGMENTS", videoId, refresh});
+      if (!contextAlive()) return {error: true};
       if (generation !== requestGeneration || state.videoId !== videoId
           || logic.videoIdFromUrl(location.href) !== videoId) return {error: true};
       if (!result?.ok || result.videoId !== videoId) throw Object.assign(new Error(result?.error || "Segment lookup failed"), {retryAfterMs: result?.retryAfterMs || 0});
@@ -235,6 +287,8 @@
       state.refreshError = null;
       outcome = {count: incoming.length};
     } catch (error) {
+      apiFailure(error);
+      if (disposed) return {error: true};
       if (generation !== requestGeneration || state.videoId !== videoId) return {error: true};
       if (refresh && state.load === "loaded") state.refreshError = error.message;
       else { state.load = "error"; state.error = error.message; }
@@ -245,6 +299,7 @@
     return outcome;
   }
   function sync() {
+    if (!contextAlive()) return;
     const id = logic.videoIdFromUrl(location.href);
     if (id !== state.videoId) {
       generation++;
@@ -268,6 +323,7 @@
     update();
   }
   function queueSync() {
+    if (!contextAlive()) return;
     if (queued) return;
     queued = true;
     queueMicrotask(() => { queued = false; sync(); });
@@ -288,36 +344,50 @@
       adPlaying: Boolean(player?.classList.contains("ad-showing"))
     };
   }
-  chrome.runtime.onMessage.addListener((message, _sender, reply) => {
+  function onMessage(message, _sender, reply) {
+    if (!contextAlive()) return;
     if (message?.type === "GET_STATUS") reply(status());
     if (message?.type === "RETRY_SEGMENTS" && state.videoId && state.load === "error") {
       state.load = "idle";
       sync();
       reply(status());
     }
-  });
+  }
   function setSettings(values) {
+    if (!contextAlive()) return;
     state.settings = {enabled: values.enabled !== false, includeSelfpromo: values.includeSelfpromo === true};
     state.ready = true;
     rebuildRanges();
     sync();
   }
-  chrome.storage.onChanged.addListener((changes, area) => {
+  function onSettingsChanged(changes, area) {
+    if (!contextAlive()) return;
     if (area !== "local") return;
     const values = {...state.settings};
     for (const key of ["enabled", "includeSelfpromo"]) {
       if (changes[key]) values[key] = changes[key].newValue;
     }
     setSettings(values);
-  });
-  chrome.storage.local.get({enabled: true, includeSelfpromo: false}).then(setSettings)
-    .catch(() => setSettings({enabled: false, includeSelfpromo: false}));
+  }
+  function onPageHide() { release(); refreshScheduler?.setActive(false); }
+  // DOM events cross isolated worlds: a newly updated instance retires a v1.5+
+  // instance immediately, even before its next media event or fallback tick.
+  window.dispatchEvent(new Event(disposeEvent));
+  globalThis.__sponsorShield = instance;
+  window.addEventListener(disposeEvent, dispose);
+  chrome.runtime.onMessage.addListener(onMessage);
+  chrome.storage.onChanged.addListener(onSettingsChanged);
+  try {
+    chrome.storage.local.get({enabled: true, includeSelfpromo: false}).then(setSettings)
+      .catch(error => { apiFailure(error); setSettings({enabled: false, includeSelfpromo: false}); });
+  } catch (error) { apiFailure(error); }
+  if (disposed) return;
   document.addEventListener("visibilitychange", refreshActivity);
-  new MutationObserver(queueSync).observe(document.documentElement, {childList: true, subtree: true});
-  ["yt-navigate-finish", "yt-page-data-updated", "popstate"].forEach(event => window.addEventListener(event, queueSync));
-  window.addEventListener("pagehide", () => { release(); refreshScheduler?.setActive(false); });
+  documentObserver.observe(document.documentElement, {childList: true, subtree: true});
+  navigationEvents.forEach(event => window.addEventListener(event, queueSync));
+  window.addEventListener("pagehide", onPageHide);
   window.addEventListener("pageshow", queueSync);
   // URL fallback for history changes with no corresponding DOM/navigation event.
-  setInterval(() => { if (logic.videoIdFromUrl(location.href) !== state.videoId) sync(); }, 1000);
+  fallbackTimer = setInterval(() => { if (contextAlive() && logic.videoIdFromUrl(location.href) !== state.videoId) sync(); }, 1000);
   sync();
 })();

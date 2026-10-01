@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.0 ? 2026-10-01
+
+- Rename the extension to Sponsor Shield; set the popup subtitle to ?Mute & blur sponsors?. Keep the existing amber shield icons, overlay and light/dark popup design.
+- Inject packaged styles/scripts into already-open supported YouTube tabs on install/update. Add scripting and explicit YouTube host permissions; the tested Chromium warning list is unchanged from 1.4.0.
+- Guard against duplicate injection. Dispose invalidated 1.5.0 instances, restoring owned mute/blur and removing observers, timers and listeners; discard late async results. Legacy pre-1.5.0 pages need a one-time reload because their old code has no disposal hook.
+- Change the popup?s completed-video count to ?segments marked? rather than claiming all segments were shielded, since Show anyway and disabled shielding can leave them visible.
+- Add store listing/privacy disclosures, a standalone policy, original illustrative store images, composition/capture sources, submission instructions and a runtime-only sponsor-shield-1.5.0.zip.
+- Add install and lifecycle unit coverage. The single live YouTube E2E passed 19 checks and failed one later harness buffer precondition; existing-tab activation and natural mute/blur passed. Full evidence and remaining human work are in TESTING.md.
+- Behaviour stays mute and blur only; NO_EXTENSION_SEEKS continues to pass.
+
 ## 1.4.0 — 2026-10-01
 
 - Redesign the in-video overlay: a frosted card with a shield mark, a large m:ss countdown, a progress bar that fills as the segment plays, **Show anyway** and a SponsorBlock credit. The picture is blurred and dimmed with a soft transition; YouTube's control bar stays usable. A compact layout is used for small players, and a larger one for fullscreen and big theater players. Animations respect reduced-motion settings.

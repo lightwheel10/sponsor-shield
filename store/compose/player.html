@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Original illustrative player</title>
+<link rel="icon" href="data:,"><link rel="stylesheet" href="../../content.css">
+<style>
+html,body{margin:0;width:100%;height:100%;background:#141418;font:13px 'Segoe UI',sans-serif;color:#f4f4f6}
+#movie_player{position:relative;width:100%;height:100%;overflow:hidden}video{width:100%;height:100%;object-fit:cover}
+.controls{position:absolute;bottom:0;left:0;right:0;padding:20px 26px 18px;background:linear-gradient(transparent,#141418);z-index:60}
+.ytp-progress-list{position:relative;height:5px;background:#ffffff35;border-radius:4px}.elapsed{width:20%;height:100%;background:#eee;border-radius:4px}
+.controls-row{display:flex;align-items:center;gap:16px;margin-top:14px}.pause{font-size:17px;letter-spacing:3px}.scene{margin-left:auto;color:#ddd}
+</style></head><body><div id="movie_player"><video class="html5-main-video" poster="artwork.svg" aria-label="Original illustration of mountains and a lake"></video>
+<div class="controls"><div class="ytp-progress-bar"><div class="ytp-progress-list"><div class="elapsed"></div></div></div><div class="controls-row"><span class="pause">Ⅱ</span><span id="clock">0:48 / 4:00</span><span class="scene">A quiet afternoon · illustrated sample</span></div></div></div>
+<script src="../../segment-logic.js"></script><script src="../../refresh-scheduler.js"></script><script src="player.js"></script><script src="../../content.js"></script></body></html>
