@@ -18,7 +18,7 @@ The local kit is prepared. Nothing has been committed, pushed, hosted, uploaded,
 
 ## 2. Fill the contact and host the policy
 
-- [ ] Replace **CONTACT_EMAIL** in [privacy.html](privacy.html) with a monitored publisher contact. Do not submit with the placeholder.
+- [x] Contact email set in [privacy.html](privacy.html): paras@spectrumailabs.com.
 - [ ] Review the policy and [listing.md](listing.md), including data recipients, local processing, IP exposure and the Limited Use certifications.
 - [ ] Host just `privacy.html` on an HTTPS static host. It is a single file with inline CSS, no script and no external resource requests. For GitHub Pages, the human can publish it in a Pages-enabled public repository or existing site. This task did not commit or push anything.
 - [ ] Open the resulting public URL in a signed-out browser and on mobile. Confirm it is readable, uses HTTPS and contains the real contact. If the host adds tracking or other behavior, update the policy accordingly.

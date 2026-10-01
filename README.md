@@ -90,7 +90,7 @@ The package script creates `release/sponsor-shield-1.5.0.zip` and verifies its 1
 
 ## Chrome Web Store kit
 
-[store/listing.md](store/listing.md) contains listing text, single purpose, all permission justifications and privacy-form answers. [store/privacy.html](store/privacy.html) is a standalone light/dark, mobile-friendly policy with no external resource requests. **CONTACT_EMAIL must be replaced and the policy hosted before submission.**
+[store/listing.md](store/listing.md) contains listing text, single purpose, all permission justifications and privacy-form answers. [store/privacy.html](store/privacy.html) is a standalone light/dark, mobile-friendly policy with no external resource requests. **The policy (contact: paras@spectrumailabs.com) must be hosted at a public HTTPS URL before submission.**
 
 The seven opaque images in `store/images/` reuse the current UI, icons and colors. Five are 1280 ? 800 screenshots; the promo tile is 440 ? 280 and marquee is 1400 ? 560. The composition uses an original locally generated SVG landscape and explicitly mocked segment data, with the actual runtime overlay and popup. It contains no real creator, YouTube page or YouTube UI chrome. Reproduction and provenance: [store/compose/README.md](store/compose/README.md).
 

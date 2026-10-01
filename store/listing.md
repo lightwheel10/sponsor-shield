@@ -77,7 +77,7 @@ Use the following conservative disclosure mapping. The form concerns data **hand
 
 The publisher should check the three limited-use certifications only after reviewing these facts: no data sale or transfer outside permitted uses; no use or transfer unrelated to the single purpose; no use for creditworthiness or lending. No certification has been submitted by this task.
 
-**Privacy-policy URL:** pending hosting of `store/privacy.html` after replacing `CONTACT_EMAIL`. No URL or contact identity has been invented.
+**Privacy-policy URL:** pending public hosting of `store/privacy.html` (contact: paras@spectrumailabs.com).
 
 ## Sources for the publisher
 
