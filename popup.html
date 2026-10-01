@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YT Sponsor Shield</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header>
+    <img src="icons/shield-48.png" width="30" height="30" alt="">
+    <div class="brand"><h1>Sponsor Shield</h1><p>for YouTube</p></div>
+    <label class="master" title="Turn the shield on or off">
+      <span class="sr-only">Shield sponsor segments</span>
+      <input id="enabled" type="checkbox" role="switch" checked>
+    </label>
+  </header>
+
+  <section class="hero" id="hero" data-state="idle" aria-live="polite">
+    <p class="kicker"><span class="dot" aria-hidden="true"></span><span id="kicker">Standing by</span></p>
+    <p class="headline" id="headline">Open a YouTube video</p>
+    <p class="sub" id="sub">Sponsor segments will be muted and blurred automatically.</p>
+    <div class="timeline" id="timeline" hidden>
+      <div class="track" id="track" aria-hidden="true"><span class="head" id="playhead"></span></div>
+      <div class="times"><span id="time-now">0:00</span><span id="time-total">0:00</span></div>
+    </div>
+    <button id="retry" class="retry" type="button" hidden>Try again</button>
+  </section>
+
+  <label class="row">
+    <span><strong>Include self-promotion</strong><small>Creators’ own merch and channel plugs</small></span>
+    <input id="includeSelfpromo" type="checkbox" role="switch">
+  </label>
+
+  <div class="stat">
+    <span class="stat-value" id="stat">0 min</span>
+    <span class="stat-label">of sponsors shielded on this device</span>
+  </div>
+
+  <p id="save-error" class="error" role="alert" hidden></p>
+
+  <footer>Segment data: <a href="https://sponsor.ajay.app" target="_blank" rel="noopener noreferrer">SponsorBlock</a> · <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a></footer>
+</body>
+</html>

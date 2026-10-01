@@ -1,0 +1,180 @@
+/* Blur the media only: the player's controls and our overlay remain interactive. */
+#movie_player video.html5-main-video,
+#movie_player video {
+  transition: filter .35s ease;
+}
+#movie_player video.ytss-blurred {
+  filter: blur(28px) saturate(.7) brightness(.72) !important;
+}
+
+/* Sits above the picture and below YouTube's control bar (which uses a higher z-index). */
+#movie_player .ytss-overlay {
+  --ytss-accent: #ffb224;
+  --ytss-ink: #f4f4f6;
+  --ytss-muted: rgba(244, 244, 246, .62);
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  padding: 16px 16px 64px;
+  box-sizing: border-box;
+  container-type: size;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 45%, rgba(8, 8, 12, .15), rgba(8, 8, 12, .55));
+  color: var(--ytss-ink);
+  font: 400 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  animation: ytss-fade .28s ease-out both;
+}
+#movie_player .ytss-overlay[hidden] { display: none !important; }
+
+#movie_player .ytss-card {
+  width: min(320px, 100%);
+  padding: 18px 20px 16px;
+  box-sizing: border-box;
+  border-radius: 18px;
+  background: rgba(18, 18, 24, .72);
+  border: 1px solid rgba(255, 255, 255, .1);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .06);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+  pointer-events: auto;
+  animation: ytss-rise .32s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+#movie_player .ytss-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#movie_player .ytss-icon {
+  flex: none;
+  width: 14px;
+  height: 16px;
+  background: var(--ytss-accent);
+  clip-path: path("M7 0 L14 2.6 V7.4 C14 11.3 11.1 14.4 7 16 C2.9 14.4 0 11.3 0 7.4 V2.6 Z");
+}
+#movie_player .ytss-eyebrow {
+  color: var(--ytss-accent);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+#movie_player .ytss-count {
+  margin: 10px 0 2px;
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+#movie_player .ytss-caption {
+  color: var(--ytss-muted);
+  font-size: 13px;
+}
+
+#movie_player .ytss-track {
+  height: 3px;
+  margin: 14px 0 16px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .14);
+  overflow: hidden;
+}
+#movie_player .ytss-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ytss-accent);
+  transform-origin: left center;
+  transform: scaleX(var(--ytss-progress, 0));
+  transition: transform .3s linear;
+}
+
+#movie_player .ytss-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#movie_player .ytss-button {
+  appearance: none;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .94);
+  color: #141418;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+}
+#movie_player .ytss-button:hover { background: #fff; }
+#movie_player .ytss-button:active { transform: scale(.97); }
+#movie_player .ytss-button:focus-visible { outline: 2px solid var(--ytss-accent); outline-offset: 3px; }
+#movie_player .ytss-source {
+  color: var(--ytss-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+#movie_player .ytss-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Small players (miniplayer, narrow windows): a compact single-row card. */
+@container (max-width: 520px) or (max-height: 300px) {
+  #movie_player .ytss-overlay { padding-bottom: 48px; }
+  #movie_player .ytss-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 14px;
+    width: auto;
+    max-width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+  #movie_player .ytss-head { grid-column: 1 / -1; }
+  #movie_player .ytss-count { grid-row: 2; margin: 6px 0 0; font-size: 28px; }
+  #movie_player .ytss-caption, #movie_player .ytss-track, #movie_player .ytss-source { display: none; }
+  #movie_player .ytss-foot { grid-row: 2; margin-top: 6px; justify-content: flex-end; }
+  #movie_player .ytss-button { padding: 7px 12px; font-size: 12px; }
+}
+/* Fullscreen and large theater players: scale up a little. */
+@container (min-width: 1400px) and (min-height: 700px) {
+  #movie_player .ytss-card { width: 380px; padding: 22px 24px 20px; border-radius: 22px; }
+  #movie_player .ytss-count { font-size: 56px; }
+  #movie_player .ytss-caption { font-size: 14px; }
+}
+
+/* Sponsor marks on YouTube's progress bar. */
+#movie_player .ytss-marks {
+  position: absolute;
+  inset: 0;
+  z-index: 34;
+  pointer-events: none;
+}
+#movie_player .ytss-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #ffb224;
+  opacity: .9;
+}
+#movie_player.ad-showing .ytss-marks { display: none; }
+
+@keyframes ytss-fade { from { opacity: 0; } }
+@keyframes ytss-rise { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) {
+  #movie_player video, #movie_player .ytss-fill { transition: none !important; }
+  #movie_player .ytss-overlay, #movie_player .ytss-card { animation: none !important; }
+}
