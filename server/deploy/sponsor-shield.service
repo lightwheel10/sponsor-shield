@@ -1,0 +1,48 @@
+# systemd service for the Sponsor Shield server.
+# Install: /etc/systemd/system/sponsor-shield.service
+[Unit]
+Description=Sponsor Shield AI sponsor-detection server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# A dedicated account with no login shell and no other permissions.
+User=sponsorshield
+Group=sponsorshield
+WorkingDirectory=/opt/sponsor-shield/server
+ExecStart=/usr/bin/python3 -m shield
+# Secrets live in a root-only file. systemd reads it as root before starting,
+# so the service account itself can never open the file.
+EnvironmentFile=/etc/sponsor-shield.env
+Environment=SHIELD_DATABASE=/var/lib/sponsor-shield/shield.sqlite3
+Environment=SHIELD_HOST=127.0.0.1
+Environment=SHIELD_PORT=8787
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+
+# --- Sandboxing: the service can only write its own database folder. ---
+StateDirectory=sponsor-shield
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+MemoryMax=512M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

@@ -39,6 +39,23 @@
       && ["skip", "mute"].includes(item.actionType))
       .map(item => ({segment: [...item.segment], category: item.category, actionType: item.actionType, UUID: item.UUID}));
   }
+  function isTranscriptHash(value) {
+    return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+  }
+  /* Turns our server's AI answer into the same shape as SponsorBlock items,
+   * so the rest of the extension treats both alike. "ai:" marks the source. */
+  function aiItems(segments) {
+    if (!Array.isArray(segments) || segments.length > 40) throw new Error("Invalid AI answer");
+    return segments.map(part => {
+      const item = {segment: [part?.start, part?.end], category: "sponsor", actionType: "mute",
+        UUID: `ai:${part?.start}-${part?.end}`};
+      if (!validSegment(item)) throw new Error("Invalid AI answer");
+      return item;
+    });
+  }
+  function isAiItem(item) {
+    return typeof item?.UUID === "string" && item.UUID.startsWith("ai:");
+  }
   function mergeSegments(items, includeSelfpromo = false) {
     const ranges = items.filter(validSegment)
       .filter(item => item.category === "sponsor" || (includeSelfpromo && item.category === "selfpromo"))
@@ -72,7 +89,8 @@
   function rememberedRange(ranges, current) {
     return Boolean(current && ranges.some(r=>r.start<current.end&&current.start<r.end));
   }
-  const api = {isVideoId, videoIdFromUrl, validSegment, extractSegments, mergeSegments, segmentAt, nextBoundary, boundaryDelay, rememberedRange};
+  const api = {isVideoId, videoIdFromUrl, validSegment, extractSegments, isTranscriptHash, aiItems, isAiItem,
+    mergeSegments, segmentAt, nextBoundary, boundaryDelay, rememberedRange};
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.ShieldLogic = api;
 })(globalThis);

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to Sponsor Shield</title>
+  <link rel="icon" href="icons/shield-32.png">
+  <link rel="stylesheet" href="welcome.css">
+  <script src="welcome.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="icons/shield-128.png" width="56" height="56" alt="">
+      <div>
+        <h1>Sponsor Shield is ready</h1>
+        <p class="lead">Open any YouTube video. Sponsor segments marked by the SponsorBlock community are muted and blurred, and you can always choose <strong>Show anyway</strong>.</p>
+      </div>
+    </header>
+
+    <section class="card" aria-labelledby="ai-title">
+      <p class="tag">Optional</p>
+      <h2 id="ai-title">AI checks</h2>
+      <p>Most videos aren’t in SponsorBlock yet. With AI checks on, when SponsorBlock has nothing for a video, Sponsor Shield reads that video’s captions and has an AI find the sponsor parts.</p>
+
+      <div class="columns">
+        <div>
+          <h3>What gets sent</h3>
+          <ul>
+            <li>To the Sponsor Shield server, run by the developer: the video ID, its captions, its public description, whether YouTube labels it as paid promotion, and a random ID this extension makes.</li>
+            <li>The server passes the captions and description to <strong>DeepSeek</strong>, an AI provider, to find the sponsors.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>What doesn’t</h3>
+          <ul>
+            <li>Your Google account, your watch history, or anything from other websites.</li>
+            <li>The server keeps the sponsor times it found. It doesn’t keep the captions or your IP address.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="choice" id="choice">
+        <button type="button" class="primary" id="turn-on">Turn on AI checks</button>
+        <button type="button" class="quiet" id="not-now">Not now</button>
+      </div>
+      <p class="result" id="result" role="status" aria-live="polite"></p>
+      <p class="fine">You can change this any time with the <strong>AI checks</strong> switch in the extension’s popup. Full details are in the <a href="https://sponsor-shield.spectrumailabs.com/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a>.</p>
+    </section>
+  </main>
+</body>
+</html>

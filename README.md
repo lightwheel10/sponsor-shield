@@ -1,18 +1,18 @@
-﻿# Sponsor Shield 1.5.0
+# Sponsor Shield 1.6.0
 
-Sponsor Shield mutes audio and blurs the video during community-marked sponsor segments on regular YouTube watch pages. Playback continues at its normal position. YouTube’s controls stay usable, and **Show anyway** lets you watch the current segment.
+Sponsor Shield mutes audio and blurs the video during sponsor segments on regular YouTube watch pages. Sponsor times come from the SponsorBlock community, and optional AI checks cover videos SponsorBlock has not marked yet. Playback continues at its normal position. YouTube’s controls stay usable, and **Show anyway** lets you watch the current segment.
 
-Version 1.5.0 uses the Sponsor Shield name and activates already-open supported tabs on install/update, with a duplicate-instance guard and invalidated-context cleanup. The existing overlay and popup design is retained. It never seeks, changes playback speed, or starts playback. Automatic skipping, Skip, Undo and the playback mode setting have been removed. Sponsor chapters are not detected.
+Version 1.6.0 adds optional AI checks (see below). It never seeks, changes playback speed, or starts playback. Automatic skipping, Skip, Undo and the playback mode setting have been removed. Sponsor chapters are not detected.
 
 ## Install
 
-1. Download or copy [sponsor-shield-1.5.0.zip](release/sponsor-shield-1.5.0.zip) and extract it to a permanent folder.
+1. Download or copy [sponsor-shield-1.6.0.zip](release/sponsor-shield-1.6.0.zip) and extract it to a permanent folder.
 2. Open `chrome://extensions` in Chrome and enable **Developer mode**.
 3. Click **Load unpacked** and select the extracted folder containing `manifest.json`.
 4. Already-open, loaded YouTube tabs activate automatically when site access is allowed. Discarded tabs receive the regular content script when Chrome loads them. No page reload is needed for a fresh install.
 5. Open a regular YouTube watch page. Open the extension’s toolbar popup to change settings or see the current video’s status.
 
-You can also load this project directory directly. No build step or runtime dependencies are required. The ZIP contains only the extension’s 13 runtime files.
+You can also load this project directory directly. No build step or runtime dependencies are required. The ZIP contains only the extension’s 19 runtime files.
 
 To update an existing installation, replace its files and click **Reload** on its extension card. Running 1.5.0 instances retire their observers, timers, event listeners and owned mute/blur when their extension context is invalidated. Duplicate injection preserves a single instance. **One-time legacy migration:** when upgrading from 1.4.0 or older, reload open YouTube tabs once; those already-running versions lack the disposal hook, and new code cannot retroactively add it to their closures. The enabled and self-promotion preferences remain supported. The old `playbackMode` preference is ignored, even if it says automatic skipping; there is no mode setting in this release.
 
@@ -29,6 +29,18 @@ To update an existing installation, replace its files and click **Reload** on it
 - Sponsor segments are marked in amber on YouTube’s own progress bar, and the toolbar icon shows a badge with the number of segments on the current video.
 - The popup shows the current status in plain language (for example **Back in 0:24** or **2 sponsors ahead**), a mini timeline of the video with its sponsor segments, and the total sponsor time shielded on this device. An initial lookup failure leaves playback available and offers **Try again**. The popup follows the system light or dark theme.
 
+## AI checks (optional, off until you turn them on)
+
+On first install a welcome page explains AI checks; they also have a switch in the popup. While they are off, the extension never contacts the Sponsor Shield server.
+
+When they are on and SponsorBlock has no sponsor segment for a video:
+
+1. The extension asks the Sponsor Shield server whether it already has an answer for the video.
+2. If not, it reads the video’s captions from YouTube’s own player (captions are turned on out of sight and the viewer’s caption setting is put back), and sends them with the public description, YouTube’s paid-promotion label and a random install ID.
+3. The server finds the paid sponsor parts with DeepSeek’s AI and saves the answer, so later viewers get it straight away. The card under the video says **found by AI**.
+
+The server code, its safety limits and how to run it are in [server/README.md](server/README.md). The extension holds no secrets.
+
 ## Updated segment data
 
 While the video is playing in a visible tab, the extension rechecks SponsorBlock about every three minutes, with ±10% timing jitter. If the first successful lookup finds no supported segments, one earlier recheck runs at about 60 seconds. Scheduled refreshes bypass the cache and share any existing request for that video.
@@ -43,13 +55,17 @@ The service worker requests data from SponsorBlock’s [public API](https://wiki
 
 Both sponsor and self-promotion data are requested; the self-promotion toggle filters locally. The provider’s `skip` and `mute` action labels identify supported records; both are handled using mute and blur. The API endpoint name does not cause playback to skip.
 
-The extension sends no votes, submissions, account information, playback positions, viewing reports or telemetry. Requests omit credentials. It stores the two preferences and a running total of shielded sponsor time locally and keeps a small segment cache in the worker’s memory: at most 48 videos for ten minutes. Empty/404 results are cached; errors are not. The cache disappears when Chrome stops the worker. Requests time out after eight seconds, responses are capped at 1 MiB, and IDs and response schemas are validated.
+The extension sends no SponsorBlock votes or submissions, account information, playback positions, viewing reports or telemetry. Requests omit credentials. It stores its preferences, the random install ID used only for AI checks, and a running total of shielded sponsor time locally and keeps a small segment cache in the worker’s memory: at most 48 videos for ten minutes. Empty/404 results are cached; errors are not. The cache disappears when Chrome stops the worker. Requests time out after eight seconds, responses are capped at 1 MiB, and IDs and response schemas are validated.
+
+With AI checks on, the data described in the AI checks section goes to `https://sponsor-shield.spectrumailabs.com`, and from there to DeepSeek. The server keeps the sponsor times it found, not caption text, IP addresses or install IDs. Full details: [store/privacy.html](store/privacy.html).
 
 Permissions:
 
-- `storage` saves the two local preferences and the shielded-time total.
+- `storage` saves local preferences (including the AI-checks choice and the random install ID) and the shielded-time total.
 - `activeTab` is retained for the user-initiated popup?s access to the current tab. Its YouTube access overlaps the explicit hosts below.
 - `https://sponsor.ajay.app/*` permits segment lookups.
+- `https://sponsor-shield.spectrumailabs.com/*` permits AI checks, only while they are switched on.
+- `scripting` inserts the packaged scripts into already-open YouTube tabs on install or update.
 - YouTube content-script matches permit shielding and responding to YouTube’s navigation without a full page load.
 
 This is independently written original JavaScript, CSS and HTML. No existing extension source was consulted, copied or adapted. SponsorBlock provides data; this is not its official extension. Icons are original generated shapes.
@@ -58,12 +74,13 @@ This is independently written original JavaScript, CSS and HTML. No existing ext
 
 **Segment data from SponsorBlock (sponsor.ajay.app), CC BY-NC-SA 4.0.**
 
-The [CC BY-NC-SA 4.0 data licence](https://creativecommons.org/licenses/by-nc-sa/4.0/) requires attribution, noncommercial use and ShareAlike for adaptations of that data. The popup includes the attribution and licence link. The data licence is separate from the original extension code.
+The [CC BY-NC-SA 4.0 data licence](https://creativecommons.org/licenses/by-nc-sa/4.0/) requires attribution, noncommercial use and ShareAlike for adaptations of that data. The popup includes the attribution and licence link. The data licence is separate from the original extension code, which is [MIT-licensed](LICENSE).
 
 ## Limitations
 
 - Supports regular HTTPS `youtube.com/watch` and `www.youtube.com/watch` pages, including navigation between videos. Shorts, embeds, mobile YouTube and other sites are outside this release.
-- Coverage and timing depend on community submissions. Missing or incorrect segments cannot be identified reliably. Chapter titles are not used for detection.
+- Coverage and timing depend on community submissions and, with AI checks, on the video having captions. AI checks can miss a sponsor or be a few seconds off. Chapter titles are not used for detection.
+- The first viewer of a new video can see or hear the start of a sponsor before the AI check finishes (usually 5–40 seconds).
 - A sponsor at the beginning can be visible or audible before the initial API request finishes. A network failure can leave content unshielded. Cached data can be up to ten minutes old before a playback refresh.
 - YouTube’s DOM and player behavior can change. Ad suspension depends on its `ad-showing` class and does not identify server-inserted ads without that signal.
 - YouTube’s mute icon can show its own player-level state even when the extension has muted the actual media element. The overlay and popup indicate shielding.
@@ -86,7 +103,7 @@ Current results: **59 unit tests passed, 0 failed**; **19 live YouTube E2E check
 
 `tests/no-seeking.test.js` contains the grep-able **NO_EXTENSION_SEEKS** contract, scanning all runtime JavaScript. Content tests make playback time read-only to the extension.
 
-The package script creates `release/sponsor-shield-1.5.0.zip` and verifies its 13 runtime files, CRCs, references and source bytes, then extracts to `.test-env/release-unpacked-v150`. Browser downloads, profiles, temporary files and logs remain under `.test-env`. The existing bundled Chromium and Python Playwright setup is described in `.test-env/setup.ps1`; the scripts use that local browser installation. Pillow is used only to inspect captured PNGs. No tooling ships in the runtime ZIP.
+The package script creates `release/sponsor-shield-1.6.0.zip` and verifies its 19 runtime files, CRCs, references and source bytes, then extracts to `.test-env/release-unpacked-v160`. Browser downloads, profiles, temporary files and logs remain under `.test-env`. The existing bundled Chromium and Python Playwright setup is described in `.test-env/setup.ps1`; the scripts use that local browser installation. Pillow is used only to inspect captured PNGs. No tooling ships in the runtime ZIP.
 
 ## Chrome Web Store kit
 

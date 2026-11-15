@@ -19,7 +19,7 @@ class Element {
   dispatchEvent(event){this.emit(event.type,event);}
   contains(node){return node===this||this.children.some(c=>c.contains(node));}
 }
-async function setup({mode="legacy-value",duration=100,end=20,muted=false,fetcher=null}={}) {
+async function setup({mode="legacy-value",duration=100,end=20,muted=false,fetcher=null,pageTranscript={language:"en",lines:[[0,"hi"],[30,"sponsored by Acme"]],description:"",paidLabel:false}}={}) {
   const video=new Element("video"),player=new Element(),doc=new Element(),win=new Element();
   let time=0;
   Object.assign(video,{duration,paused:true,ended:false,readyState:4,seeking:false,playbackRate:1,muted});
@@ -42,6 +42,13 @@ async function setup({mode="legacy-value",duration=100,end=20,muted=false,fetche
   const context=vm.createContext({ShieldLogic:logic,ShieldRefresh:{createRefreshScheduler:opts=>{refreshFn=opts.refresh;return require("../refresh-scheduler.js").createRefreshScheduler({...opts,setTimer:()=>0,clearTimer(){}});}},document:doc,window:win,location,chrome,queueMicrotask,URL,Event,
     MutationObserver:class{constructor(fn){this.fn=fn;observers.push(this);}observe(target){target.observer=this.fn;this.connected=true;}disconnect(){this.connected=false;}},
     setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id),setInterval:(fn,ms)=>{intervals.set(++timerId,{fn,ms});return timerId;},clearInterval:id=>intervals.delete(id)});
+  // The AI helper runs inside the same fake world, and a fake page-world caption
+  // reader answers transcript requests (pass pageTranscript: null to setup for "no captions").
+  vm.runInContext(fs.readFileSync(require.resolve("../ai-flow.js"),"utf8"),context);
+  win.location={origin:"https://www.youtube.com"};
+  win.pageTranscript=pageTranscript;
+  win.postMessage=data=>{if(data?.type!=="GRAB_TRANSCRIPT")return;queueMicrotask(()=>win.emit("message",{source:win,data:{
+    source:"sponsor-shield-page",requestId:data.requestId,videoId:data.videoId,ok:Boolean(win.pageTranscript),transcript:win.pageTranscript,error:"no captions"}}));};
   const inject=()=>vm.runInContext(source,context);
   inject();
   const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
@@ -108,7 +115,8 @@ test("refresh failure retains previous data; a newly covering segment applies no
  await h.at(32);assert.equal(h.blurred(),false);await h.refresh();assert.equal(h.blurred(),true);assert.equal(h.status().segmentsFound,2);
 });
 test("in-flight refresh is coalesced and stale results cannot change a new page",async()=>{
- let calls=0,resolve;const h=await setup({fetcher:async()=>{if(calls++)return new Promise(r=>resolve=r);return {ok:true,videoId:"abcdefghijk",segments:[]};}});
+ // Counts SponsorBlock lookups only; the AI fallback (asked because this video has none) is answered "unavailable".
+ let calls=0,resolve;const h=await setup({fetcher:async message=>{if(message.type!=="GET_SEGMENTS")return {ok:true,status:"unavailable",reason:"test"};if(calls++)return new Promise(r=>resolve=r);return {ok:true,videoId:"abcdefghijk",segments:[]};}});
  const pending=h.refresh();await h.refresh();assert.equal(calls,2);h.location.href="https://www.youtube.com/";h.status();
  resolve({ok:true,videoId:"abcdefghijk",segments:[{segment:[10,20],category:"sponsor",actionType:"skip",UUID:"late"}]});await pending;
  assert.equal(h.status().segmentsFound,0);assert.equal(h.status().videoId,null);
@@ -171,4 +179,74 @@ test("replacement handoff retires the old instance and preserves a pre-existing 
  assert.equal(h.video.muted,true);assert.equal(h.blurred(),false);assert.equal(h.intervals.size,0);
  h.inject();await h.flush();await h.at(11);assert.equal(h.blurred(),true);assert.equal(h.intervals.size,1);
  assert.equal(h.video.listeners.timeupdate.length,1);await h.at(21);assert.equal(h.video.muted,true);
+});
+
+/* ---------- AI fallback (used only when SponsorBlock has no sponsor parts) ---------- */
+const AI_ITEM={segment:[30,50],category:"sponsor",actionType:"mute",UUID:"ai:30-50"};
+function aiServer(answers){
+ const asked=[];
+ const fetcher=async message=>{
+  asked.push(message);
+  if(message.type==="GET_SEGMENTS")return {ok:true,videoId:"abcdefghijk",segments:[]};
+  const next=answers[message.type+(message.transcriptHash?"+hash":"")];
+  return typeof next==="function"?next(message):next;
+ };
+ return {asked,fetcher};
+}
+const settle=async h=>{for(let i=0;i<6;i++)await h.flush();};
+test("no SponsorBlock sponsor: AI answer is applied and labelled as found by AI",async()=>{
+ const server=aiServer({AI_LOOKUP:{ok:true,status:"unknown"},AI_SUBMIT:{ok:true,status:"ready",segments:[AI_ITEM]}});
+ const h=await setup({fetcher:server.fetcher,duration:100});await settle(h);
+ assert.deepEqual(server.asked.map(m=>m.type),["GET_SEGMENTS","AI_LOOKUP","AI_SUBMIT"]);
+ assert.deepEqual(server.asked[2].transcript.lines,[[0,"hi"],[30,"sponsored by Acme"]]);
+ assert.equal(h.status().ai,"done");assert.deepEqual({...h.status().sources},{sponsorblock:0,ai:1});
+ await h.at(31,false);assert.equal(h.blurred(),true);assert.equal(h.video.muted,true);
+ assert.equal(h.byClass("ytss-source").textContent,"found by AI");
+ await h.at(50,false);assert.equal(h.blurred(),false);assert.equal(h.video.muted,false);
+});
+test("SponsorBlock sponsor found: the AI is never asked",async()=>{
+ const asked=[];
+ const h=await setup({fetcher:async message=>{asked.push(message.type);return {ok:true,videoId:"abcdefghijk",segments:[{segment:[10,20],category:"sponsor",actionType:"skip",UUID:"sb"}]};}});
+ await settle(h);assert.deepEqual(asked,["GET_SEGMENTS"]);assert.equal(h.status().ai,"idle");
+});
+test("AI answer that is still being worked on is polled until ready",async()=>{
+ const hash="b".repeat(64);
+ const server=aiServer({AI_LOOKUP:{ok:true,status:"unknown"},AI_SUBMIT:{ok:true,status:"working",transcript:hash,retryAfter:4},
+  "AI_LOOKUP+hash":{ok:true,status:"ready",segments:[AI_ITEM]}});
+ const h=await setup({fetcher:server.fetcher});await settle(h);
+ assert.equal(h.status().ai,"checking");
+ const poll=[...h.timers.entries()].find(([,t])=>t.ms===4000);assert.ok(poll,"a 4 second poll timer is waiting");
+ h.timers.delete(poll[0]);poll[1].fn();await settle(h);
+ assert.equal(server.asked.at(-1).transcriptHash,hash);assert.equal(h.status().ai,"done");assert.equal(h.status().ranges.length,1);
+});
+test("a late AI answer for a video the viewer already left is ignored",async()=>{
+ let release;
+ const server=aiServer({AI_LOOKUP:{ok:true,status:"unknown"},AI_SUBMIT:()=>new Promise(r=>release=r)});
+ const h=await setup({fetcher:server.fetcher});await settle(h);
+ h.location.href="https://www.youtube.com/watch?v=zzzzzzzzzzz";h.win.emit("yt-navigate-finish");await settle(h);
+ release({ok:true,status:"ready",segments:[AI_ITEM]});await settle(h);
+ assert.equal(h.status().videoId,"zzzzzzzzzzz");assert.equal(h.status().ranges.length,0);
+});
+test("no captions or server limits leave playback untouched",async()=>{
+ const noCaptions=aiServer({AI_LOOKUP:{ok:true,status:"unknown"}});
+ const h=await setup({fetcher:noCaptions.fetcher,pageTranscript:null});await settle(h);
+ assert.equal(h.status().ai,"unavailable");assert.deepEqual(noCaptions.asked.map(m=>m.type),["GET_SEGMENTS","AI_LOOKUP"]);
+ await h.at(31,false);assert.equal(h.blurred(),false);assert.equal(h.video.muted,false);
+ const limited=aiServer({AI_LOOKUP:{ok:true,status:"unavailable",reason:"budget"}});
+ const g=await setup({fetcher:limited.fetcher});await settle(g);assert.equal(g.status().ai,"unavailable");
+});
+test("a malformed AI segment from a compromised worker reply is dropped",async()=>{
+ const server=aiServer({AI_LOOKUP:{ok:true,status:"ready",segments:[AI_ITEM,{segment:[60,40],category:"sponsor",actionType:"mute",UUID:"ai:bad"},{...AI_ITEM,segment:[70,80],UUID:"not-ai"}]}});
+ const h=await setup({fetcher:server.fetcher});await settle(h);
+ assert.deepEqual(h.status().ranges.map(r=>[r.start,r.end]),[[30,50]]);
+});
+test("AI checks off: no captions are read; turning them on checks the current video",async()=>{
+ let aiOn=false;
+ const server=aiServer({AI_LOOKUP:()=>aiOn?{ok:true,status:"unknown"}:{ok:true,status:"unavailable",reason:"off"},
+  AI_SUBMIT:{ok:true,status:"ready",segments:[AI_ITEM]}});
+ const h=await setup({fetcher:server.fetcher});await settle(h);
+ assert.equal(h.status().ai,"off");assert.deepEqual(server.asked.map(m=>m.type),["GET_SEGMENTS","AI_LOOKUP"]);
+ aiOn=true;await h.change("aiChecks",true);await settle(h);
+ assert.deepEqual(server.asked.map(m=>m.type),["GET_SEGMENTS","AI_LOOKUP","AI_LOOKUP","AI_SUBMIT"]);
+ assert.equal(h.status().ai,"done");assert.equal(h.status().ranges.length,1);
 });

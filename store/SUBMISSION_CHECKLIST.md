@@ -1,28 +1,20 @@
-# Sponsor Shield 1.5.0 submission checklist
+# Sponsor Shield 1.6.0 submission checklist
 
-The local kit is prepared. Nothing has been committed, pushed, hosted, uploaded, submitted or published. A human must complete the unchecked steps. A partial live browser suite is documented in [TESTING.md](../TESTING.md); this is not an all-green release certification.
+Steps marked [x] are done. The rest need the publisher (a human with the Chrome Web Store account).
 
-## 1. Review the package and remaining browser checks
+## 1. Package and checks
 
-- [x] Rename to Sponsor Shield; version 1.5.0; 98-character short description.
-- [x] Keep mute/blur only. Node tests: 59 passed, 0 failed, including NO_EXTENSION_SEEKS.
-- [x] Build `release/sponsor-shield-1.5.0.zip`: 13 runtime files; valid CRCs; byte match with source; extracted package loaded in Chromium.
-- [x] Confirm installation activates an already-open real YouTube watch document without reload; natural sponsor entry and exit work.
-- [x] Record one live E2E: 19 passed, 1 failed. The failure was a 20-second buffer precondition timeout, before the proposed backward seek was issued.
-- [x] Check actual Chromium install/reload/invalidation using a separate synthetic player: 5 passed, 0 failed.
-- [x] Confirm the two manifests produce identical permission-warning lists in Chromium 145.0.7632.6. A real Web Store update prompt remains untested.
-- [x] Capture 7 opaque RGB PNG assets; verify dimensions; 31 composition/popup/policy checks pass with 0 console/page errors and 0 external composition requests.
-- [ ] In ordinary Chrome, finish the live checks not reached: native unmute override, preserving an existing mute, live setting changes, ad suspension, real watch-to-watch SPA navigation, self-promotion opt-in, preference persistence and the three-minute refresh. Unit tests cover these logic paths, but are not a substitute for this browser check. No naturally served ad was observed in the current run.
-- [ ] If upgrading a developer installation from 1.4.0 or older, reload existing YouTube tabs once. Those already-running releases lack the new disposal hook; 1.5.0 cannot retroactively add cleanup to their closures. The new guard is verified for instances running 1.5.0.
-- [ ] Review the prepared name, existing original amber shield icon and images. The rename avoids YouTube in the product name; no trademark clearance or store approval is claimed.
+- [x] Version 1.6.0; 106-character short description; MIT licence for the code.
+- [x] Build `release/sponsor-shield-1.6.0.zip` with `store/tools/package_release.py`: 19 runtime files (adds the caption reader, AI flow, server address and welcome page); valid CRCs; byte match with source.
+- [x] AI checks are off until the viewer agrees on the welcome page or in the popup (Chrome's in-product disclosure and consent rule). Browser test: 9 of 9 passed, including no server request while off. See [TESTING.md](../TESTING.md).
+- [ ] Install 1.6.0 in an everyday browser and watch a few videos (see TESTING.md).
+- [ ] Review the screenshots below. They show 1.5.0 screens; they are still accurate, but none shows AI checks or the welcome page. Optional: add one.
 
-## 2. Fill the contact and host the policy
+## 2. Privacy policy
 
 - [x] Contact email set in [privacy.html](privacy.html): paras@spectrumailabs.com.
-- [ ] Review the policy and [listing.md](listing.md), including data recipients, local processing, IP exposure and the Limited Use certifications.
-- [ ] Host just `privacy.html` on an HTTPS static host. It is a single file with inline CSS, no script and no external resource requests. For GitHub Pages, the human can publish it in a Pages-enabled public repository or existing site. This task did not commit or push anything.
-- [ ] Open the resulting public URL in a signed-out browser and on mobile. Confirm it is readable, uses HTTPS and contains the real contact. If the host adds tracking or other behavior, update the policy accordingly.
-- [ ] Record the actual privacy URL here: **PENDING_HOSTED_PRIVACY_URL**. Enter it in the item’s Privacy practices tab and wherever the publisher dashboard requires the policy URL. Do not paste a local file path.
+- [x] Hosted at **https://sponsor-shield.spectrumailabs.com/privacy** (nginx on the VPS, HTTPS, no scripts). Enter this URL in the Privacy practices tab.
+- [ ] Review the policy and [listing.md](listing.md), including data recipients (SponsorBlock, the Sponsor Shield server, DeepSeek) and the Limited Use certifications.
 
 ## 3. Prepare the developer account
 
@@ -32,13 +24,13 @@ The local kit is prepared. Nothing has been committed, pushed, hosted, uploaded,
 
 ## 4. Upload and fill the fields
 
-Click **Add new item → Choose file → Upload**, selecting **`release/sponsor-shield-1.5.0.zip`**. Do not upload the repository, store folder, old ZIPs, test fixtures, screenshots as runtime files, or `.test-env`.
+Click **Add new item → Choose file → Upload**, selecting **`release/sponsor-shield-1.6.0.zip`**. Do not upload the repository, store folder, old ZIPs, test fixtures, screenshots as runtime files, or `.test-env`.
 
 | Dashboard destination | Value / source |
 | --- | --- |
-| Package | Verify Sponsor Shield, 1.5.0, Manifest V3 and the expected permissions. |
+| Package | Verify Sponsor Shield, 1.6.0, Manifest V3 and the expected permissions (adds sponsor-shield.spectrumailabs.com). |
 | Store listing: name | Sponsor Shield (manifest). |
-| Store listing: summary | Short description in `listing.md` (matches manifest, 98 characters). |
+| Store listing: summary | Short description in `listing.md` (matches manifest, 106 characters). |
 | Store listing: detailed description | Copy only the “Long description” section of `listing.md`, without the internal preparation notes. |
 | Store listing: language/category | English; suggested Functionality & UI under Productivity, using the closest actual dashboard label. |
 | Store listing: icon | `../icons/shield-128.png` (the same icon is in the ZIP). |
@@ -51,7 +43,7 @@ Click **Add new item → Choose file → Upload**, selecting **`release/sponsor-
 | Privacy practices: data usage | `listing.md` → Data usage mapping. Includes locally handled data and unavoidable IP exposure. |
 | Privacy practices: remote code | No; use the supplied explanation in `listing.md`. |
 | Privacy practices: Limited Use certifications | Human reviews and checks the three certifications described in `listing.md`. |
-| Privacy practices: policy URL | Actual hosted URL from step 2. |
+| Privacy practices: policy URL | https://sponsor-shield.spectrumailabs.com/privacy |
 | Distribution | Human chooses countries and public/unlisted/private visibility. Suggested free distribution; respect the data licence’s noncommercial terms. |
 | Test instructions | Use the reviewer note below; no account or credentials are required by the extension. |
 
@@ -71,7 +63,7 @@ All seven are opaque RGB PNGs. They show the real packaged UI with explicit samp
 
 ### Reviewer test note — paste if helpful
 
-No extension account is required. Open a regular YouTube watch page with community-marked sponsor segments and allow access to youtube.com, www.youtube.com and sponsor.ajay.app. The popup reports whether segments were found. Playback should continue normally while audio is muted and the picture blurred inside a segment; sound and picture should return at its end. Show anyway restores the current segment without moving the playhead. Self-promotion is off by default. Shorts and embeds are not supported. Community data can change. On 1 October 2026, video g1f7iZehQ2A had a SponsorBlock segment at 28.855–31.355 seconds and the natural mute/blur transition passed in our live test. The extension never seeks. Our automated browser’s later backward-seek setup timed out waiting for buffering; see TESTING.md for the exact partial result.
+No extension account is required. A welcome page opens on install; AI checks are optional and off until you press Turn on AI checks there or use the switch in the popup. Open a regular YouTube watch page with community-marked sponsor segments and allow access to youtube.com, www.youtube.com, sponsor.ajay.app and sponsor-shield.spectrumailabs.com. The popup reports whether segments were found. Playback should continue normally while audio is muted and the picture blurred inside a segment; sound and picture should return at its end. Show anyway restores the current segment without moving the playhead. Self-promotion is off by default. Shorts and embeds are not supported. Community data can change. On 1 October 2026, video g1f7iZehQ2A had a SponsorBlock segment at 28.855–31.355 seconds and the natural mute/blur transition passed in our live test. The extension never seeks. Our automated browser’s later backward-seek setup timed out waiting for buffering; see TESTING.md for the exact partial result.
 
 ## 5. Submit, then verify the reviewed build
 
