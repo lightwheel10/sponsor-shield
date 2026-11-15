@@ -5,8 +5,11 @@
   const logic = ShieldLogic;
   const state = {
     videoId: null, raw: [], ranges: [], load: "idle", error: null, refreshError: null, refreshCount: 0,
-    settings: {enabled: true, includeSelfpromo: false}, ready: false
+    settings: {enabled: true, includeSelfpromo: false}, ready: false,
+    // AI fallback for this video: idle | checking | done | unavailable
+    ai: "idle"
   };
+  let grabTranscript = null;
   let generation = 0;
   let video = null;
   let player = null;
@@ -31,8 +34,10 @@
     if (!overrideRanges.some(saved => saved.key === range.key)) overrideRanges.push({...range});
   }
   function rebuildRanges() {
+    const aiItems = state.raw.filter(logic.isAiItem);
+    const foundByAi = range => aiItems.some(item => item.segment[0] < range.end && range.start < item.segment[1]);
     state.ranges = logic.mergeSegments(state.raw, state.settings.includeSelfpromo)
-      .map(range => ({...range, source: "sponsorblock"}));
+      .map(range => ({...range, source: foundByAi(range) ? "ai" : "sponsorblock"}));
   }
   function refreshActivity() {
     if (!contextAlive()) return;
@@ -195,13 +200,14 @@
     const button = make("button", "ytss-button", "Show anyway");
     button.type = "button";
     button.addEventListener("click", showAnyway);
-    foot.append(button, make("span", "ytss-source", "via SponsorBlock"));
+    const source = make("span", "ytss-source", "via SponsorBlock");
+    foot.append(button, source);
     card.append(head, count, caption, track, foot);
     label = make("span", "ytss-sr");
     label.setAttribute("role", "status");
     overlay.append(card, label);
     player.append(overlay);
-    ui = {count, fill};
+    ui = {count, fill, source};
   }
   function bind(nextVideo, nextPlayer) {
     if (nextVideo === video && nextPlayer === player) return;
@@ -244,6 +250,8 @@
       const remaining = Math.max(1, Math.ceil(current.end - video.currentTime));
       const countText = clock(remaining);
       if (ui.count.textContent !== countText) ui.count.textContent = countText;
+      const sourceText = current.source === "ai" ? "found by AI" : "via SponsorBlock";
+      if (ui.source.textContent !== sourceText) ui.source.textContent = sourceText;
       const progress = Math.min(1, Math.max(0, (video.currentTime - current.start) / (current.end - current.start)));
       ui.fill.style?.setProperty("--ytss-progress", progress.toFixed(4));
       // Announce once on entry; a per-second countdown would flood screen readers.
@@ -268,6 +276,7 @@
     inFlight = token;
     if (!refresh) { state.load = "loading"; state.error = null; }
     let outcome;
+    let needsAi = false;
     try {
       const result = await chrome.runtime.sendMessage({type: "GET_SEGMENTS", videoId, refresh});
       if (!contextAlive()) return {error: true};
@@ -280,7 +289,11 @@
         for (const old of state.raw) if (!byId.has(old.UUID)) byId.set(old.UUID, old);
         state.raw = [...byId.values()].slice(0, 1000);
         state.refreshCount++;
-      } else state.raw = incoming;
+      } else {
+        state.raw = incoming;
+        // SponsorBlock is checked first; the AI is only asked when it has no sponsor parts.
+        needsAi = !incoming.some(item => item.category === "sponsor");
+      }
       rebuildRanges();
       state.load = "loaded";
       state.error = null;
@@ -296,7 +309,41 @@
     } finally { if (inFlight === token) inFlight = null; }
     if (!refresh) refreshScheduler?.settle(outcome);
     sync();
+    if (needsAi) void loadAiSegments();
     return outcome;
+  }
+  async function loadAiSegments() {
+    if (!contextAlive() || typeof ShieldAI === "undefined") return;
+    const requestGeneration = generation;
+    const videoId = state.videoId;
+    const isCurrent = () => contextAlive() && generation === requestGeneration && state.videoId === videoId;
+    state.ai = "checking";
+    let answer;
+    try {
+      grabTranscript ??= ShieldAI.createPageBridge(window);
+      answer = await ShieldAI.findAiSegments(videoId, {
+        ask: message => chrome.runtime.sendMessage(message),
+        grabTranscript,
+        isCurrent,
+        wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
+        now: () => Date.now(),
+        random: Math.random
+      });
+    } catch (error) {
+      apiFailure(error); // e.g. no captions on this video, or the server could not be reached
+      answer = {status: "unavailable"};
+    }
+    if (!isCurrent()) return;
+    if (answer?.status === "ready" && Array.isArray(answer.segments)) {
+      const known = new Set(state.raw.map(item => item.UUID));
+      const fresh = answer.segments.filter(item => logic.validSegment(item) && logic.isAiItem(item) && !known.has(item.UUID));
+      state.raw = [...state.raw, ...fresh].slice(0, 1000);
+      rebuildRanges();
+      state.ai = "done";
+    } else {
+      state.ai = answer?.reason === "off" ? "off" : "unavailable";
+    }
+    sync();
   }
   function sync() {
     if (!contextAlive()) return;
@@ -313,6 +360,7 @@
       state.refreshCount = 0;
       state.load = "idle";
       state.error = null;
+      state.ai = "idle";
       overrideRanges.length = 0;
       if (id) refreshScheduler = ShieldRefresh.createRefreshScheduler({refresh: () => loadSegments(true)});
     }
@@ -333,7 +381,11 @@
     return {
       videoId: state.videoId, enabled: state.settings.enabled,
       includeSelfpromo: state.settings.includeSelfpromo, load: state.load, error: state.error,
-      sources: {sponsorblock: state.ranges.length},
+      sources: {
+        sponsorblock: state.ranges.filter(range => range.source === "sponsorblock").length,
+        ai: state.ranges.filter(range => range.source === "ai").length
+      },
+      ai: state.ai,
       ranges: state.ranges.map(r => ({...r})),
       refreshCount: state.refreshCount, refreshError: state.refreshError, refresh: refreshScheduler?.status() || null,
       segmentsFound: state.ranges.length, active: Boolean(active),
@@ -368,6 +420,9 @@
       if (changes[key]) values[key] = changes[key].newValue;
     }
     setSettings(values);
+    // AI checks just turned on: check the video being watched now, if SponsorBlock had nothing.
+    if (changes.aiChecks?.newValue === true && state.ai === "off" && state.load === "loaded"
+        && !state.raw.some(item => item.category === "sponsor")) void loadAiSegments();
   }
   function onPageHide() { release(); refreshScheduler?.setActive(false); }
   // DOM events cross isolated worlds: a newly updated instance retires a v1.5+

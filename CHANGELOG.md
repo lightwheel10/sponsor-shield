@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.0 — 2026-11-15
+
+- AI fallback: when SponsorBlock has no sponsor segment for a video, the extension asks the new Sponsor Shield server (`server/`). If the server has no answer yet, the extension reads the video's captions invisibly in the page (`transcript-grabber.js`, page world) and sends them; the server finds paid sponsor parts with DeepSeek using the 3-step method tested on 14 Nov 2026. AI parts are muted and blurred like any other, and the overlay says "found by AI".
+- Security: the AI key lives only on the server. The server enforces a daily budget, per-video and per-network limits, and one AI check per transcript, and checks with YouTube that the video exists. Answers are tied to the exact captions, description and paid label they came from, and are shared with other viewers only after 2 different installs on 2 different networks sent the same ones. Answers covering over 40% of a video are never shared. Every server reply is validated in the extension.
+- The viewer's caption setting, including YouTube's remembered choice, is restored after reading. Captions and YouTube's track-change notice stay hidden while reading. The extension waits for YouTube ads to end before reading.
+- The popup shows "AI is reading this video…" while checking. The footer credits AI checks. The privacy policy draft is updated for the server.
+- New permission: `https://sponsor-shield.spectrumailabs.com/*`. Minimum Chrome 111, for the page-world script.
+- AI checks are off until the viewer turns them on, as Chrome's user-data policy requires in-product disclosure and consent. A welcome page opens on first install and explains what is sent; the popup has an **AI checks** switch. While off, the service worker refuses every AI request before any network call.
+- Code is now MIT-licensed (`LICENSE`); SponsorBlock data keeps its CC BY-NC-SA 4.0 licence.
+
 ## 1.5.0 ? 2026-10-01
 
 - Rename the extension to Sponsor Shield; set the popup subtitle to ?Mute & blur sponsors?. Keep the existing amber shield icons, overlay and light/dark popup design.

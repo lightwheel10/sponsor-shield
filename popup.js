@@ -2,6 +2,7 @@
 const $ = selector => document.querySelector(selector);
 const enabled = $("#enabled");
 const selfpromo = $("#includeSelfpromo");
+const aiChecks = $("#aiChecks");
 const hero = $("#hero");
 const kicker = $("#kicker");
 const headline = $("#headline");
@@ -85,8 +86,16 @@ function render(status) {
     return show("active", "Shielding now", `Back in ${clock(Math.ceil(status.activeRange.end - status.time))}`, "Sound and picture return automatically.");
   }
   if (status.overridden) return show("override", "Your call", "Showing this segment", "The next sponsor will be shielded as usual.");
+  if (!ranges.length && status.ai === "checking") {
+    return show("checking", "Checking", "AI is reading this video…", "The video keeps playing. This can take up to a minute.");
+  }
+  if (!ranges.length && status.ai === "off") {
+    return show("clear", "Watching", "No sponsors marked yet", "Turn on AI checks below to have this video's captions checked.");
+  }
   if (!ranges.length) {
-    return show("clear", "Watching", "No sponsors marked yet", "We re-check every few minutes while you watch.");
+    const checked = status.ai === "done";
+    return show("clear", "Watching", checked ? "No sponsors found" : "No sponsors marked yet",
+      checked ? "AI checked this video's captions." : "We re-check every few minutes while you watch.");
   }
   const ahead = status.time === null ? ranges : ranges.filter(range => range.start > status.time);
   if (!ahead.length) return show("ready", "Protected", "All sponsors are behind you", `${plural(ranges.length, "segment")} marked in this video.`);
@@ -126,13 +135,17 @@ async function save(input, key) {
 
 enabled.addEventListener("change", () => save(enabled, "enabled"));
 selfpromo.addEventListener("change", () => save(selfpromo, "includeSelfpromo"));
+aiChecks.addEventListener("change", () => save(aiChecks, "aiChecks"));
 retry.addEventListener("click", () => refresh("RETRY_SEGMENTS"));
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.shieldedSeconds) renderStat(changes.shieldedSeconds.newValue);
+  if (area !== "local") return;
+  if (changes.shieldedSeconds) renderStat(changes.shieldedSeconds.newValue);
+  if (changes.aiChecks) aiChecks.checked = changes.aiChecks.newValue === true;
 });
-chrome.storage.local.get({enabled: true, includeSelfpromo: false, shieldedSeconds: 0}).then(values => {
+chrome.storage.local.get({enabled: true, includeSelfpromo: false, aiChecks: false, shieldedSeconds: 0}).then(values => {
   enabled.checked = values.enabled !== false;
   selfpromo.checked = values.includeSelfpromo === true;
+  aiChecks.checked = values.aiChecks === true;
   renderStat(values.shieldedSeconds);
   void refresh();
 }).catch(() => {

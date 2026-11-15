@@ -179,3 +179,9 @@
   #movie_player video, #movie_player .ytss-fill { transition: none !important; }
   #movie_player .ytss-overlay, #movie_player .ytss-card { animation: none !important; }
 }
+
+/* While the extension briefly turns captions on to read them, keep them invisible. */
+#movie_player.ytss-hide-captions .ytp-caption-window-container,
+#movie_player.ytss-hide-captions .caption-window {
+  display: none !important;
+}

@@ -1,3 +1,31 @@
+# Sponsor Shield — v1.6.0 additions on 15 November 2026
+
+- AI checks now need the viewer's consent (Chrome's in-product disclosure rule). `node --test`: **83 passed, 0 failed** (3 new tests: the worker makes no server request while AI checks are off; a new install opens the welcome page once, updates do not; turning AI checks on checks the video being watched).
+- Headless Brave (temporary profile) with the packaged extension and a fake local server that counts requests: **9 of 9 passed**. The welcome tab opens on install; AI checks start off; on a YouTube video with no SponsorBlock data, 0 requests reached the server in 25 s; "Turn on AI checks" saves the choice and shows a confirmation; the open video is then looked up; the popup switch shows and changes the choice; no page errors.
+- Server deployed on the VPS behind nginx at `https://sponsor-shield.spectrumailabs.com` (Let's Encrypt certificate). Server unit tests on the VPS: **49 passed, 0 failed**. `/privacy` serves the policy; `/` returns 404.
+- `store/tools/package_release.py` builds `release/sponsor-shield-1.6.0.zip` with 19 runtime files.
+
+# Sponsor Shield — v1.6.0 (AI fallback) testing
+
+Test date: **14 November 2026**. Everything ran on the developer PC. The server ran locally (`127.0.0.1`) with the real DeepSeek API. Nothing was deployed, committed or published.
+
+| Suite / check | Passed | Failed | Notes |
+| --- | ---: | ---: | --- |
+| `node --test` (extension) | 80 | 0 | 59 earlier tests (2 install tests updated for the new script list, 1 refresh test now ignores AI messages) + 21 new AI tests |
+| Server unit tests (`server/`, `python -m unittest`) | 49 | 0 | Run 20 times in a row after fixing a Windows-only connection reset on early refusals: 0 failures |
+| Server with real AI, 4 saved transcripts | 4 | 0 | White Fox and AssemblyAI found; the Pomoly flags fall inside parts already marked "fair either way"; the clean video stayed clean; about $0.03 |
+| Headless Brave (temporary profile) + extension + local server + real AI + real YouTube | 13 | 0 | Shared after 2 networks, not after 1. The shared answer reached the extension in 2 s. Aura ad at 0:55 muted, blurred and labelled "found by AI", then restored. Unreadable captions give up quietly after waiting out YouTube ads. Caption on/off state kept |
+| Caption reader in the owner's real Brave (one tab, script injected, extension not installed) | 3 | 0 | Turkish video: 352 lines in 0.23 s, identical fingerprint to the 14 Nov morning grab, captions never visible, setting unchanged. Italian video with English auto-translate on: restored exactly, YouTube's track notice never visible, 305 lines in 4.3 s (one empty first download, retry worked) |
+
+Not covered:
+- The extension installed in an everyday browser (only the reader was injected into real Brave).
+- The deployed VPS server, HTTPS and nginx limits.
+- A store build.
+
+The bundled Playwright Chromium on this PC does not start ("side-by-side configuration is incorrect"), so headless Brave with a throwaway profile was used. YouTube serves empty caption files to that automated browser, which is why caption reading was checked in the real Brave.
+
+Finding: YouTube can serve different caption versions of one video (`variant=gemini`, `timing-optimized`). The same Italian video gave 154 lines in the morning and 305 lines in the afternoon. Viewers on the same version match exactly. A video may need one AI check per version, which the per-video daily cap limits.
+
 # Sponsor Shield — v1.5.0 testing
 
 Test date: **1 October 2026**. All created/changed files, browser profiles, temporary files, generated art and screenshots are inside this project. No commit, push, store upload or publication was performed.
